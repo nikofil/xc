@@ -1,4 +1,5 @@
 use std::fmt;
+use crate::parser::Operator;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
@@ -6,6 +7,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub enum Error {
     NumParseError(String),
     OperatorParseError(String),
+    ExprParseError(Operator),
+    ExprTermsError,
 }
 
 impl fmt::Display for Error {
@@ -13,6 +16,8 @@ impl fmt::Display for Error {
         match self {
             Error::NumParseError(s) => write!(f, "Could not parse number {}", s),
             Error::OperatorParseError(s) => write!(f, "Unknown operator {}", s),
+            Error::ExprParseError(o) => write!(f, "Could not parse {} expression", o),
+            Error::ExprTermsError => write!(f, "Incorrect terms found in expression"),
         }
     }
 }

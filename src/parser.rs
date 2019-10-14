@@ -2,23 +2,22 @@ use crate::error::{Error, Result};
 use crate::reprs::parse_num;
 
 #[derive(Eq, PartialEq, Debug)]
-enum Operator {
+pub enum Operator {
     Sentinel,
     Add,
     Mul,
 }
 
 #[derive(Eq, PartialEq, Debug)]
-enum Operand {
+pub enum Operand {
     Num(i64),
     Term(Operator, Box<Operand>, Box<Operand>),
 }
 
 #[derive(Eq, PartialEq, Debug)]
-enum Term {
+pub enum Term {
     Operator(Operator),
-    Operand(Operand),
-    EOF,
+    Num(i64),
 }
 
 pub struct Parser<'a> {
@@ -57,8 +56,12 @@ impl Parser<'_> {
             cur_str
         }
     }
+}
 
-    fn next_term(&mut self) -> Result<Term> {
+impl<'a> Iterator for Parser<'a> {
+    type Item = Result<Term>;
+
+    fn next(&mut self) -> Option<Self::Item> {
         while let Some(c) = self.input.chars().next() {
             if c.is_whitespace() {
                 self.input = &self.input[1..];
@@ -69,17 +72,17 @@ impl Parser<'_> {
         if let Some(c) = self.input.chars().next() {
             if c.is_alphanumeric() {
                 let token = self.take_input_until(|nc| !nc.is_alphanumeric());
-                parse_num(token).map(|num| Term::Operand(Operand::Num(num)))
+                Some(parse_num(token).map(|num| Term::Num(num)))
             } else {
                 let token = self.take_input_until(|nc| nc.is_alphanumeric() || nc.is_whitespace());
                 match token {
-                    "+" => Ok(Term::Operator(Operator::Add)),
-                    "*" => Ok(Term::Operator(Operator::Mul)),
-                    _ => Err(Error::OperatorParseError(token)),
+                    "+" => Some(Ok(Term::Operator(Operator::Add))),
+                    "*" => Some(Ok(Term::Operator(Operator::Mul))),
+                    _ => Some(Err(Error::OperatorParseError(token.to_string()))),
                 }
             }
         } else {
-            Ok(Term::EOF)
+            None
         }
     }
 }
@@ -87,20 +90,24 @@ impl Parser<'_> {
 #[test]
 fn test_parser_simple() {
     let mut parser = Parser::new("111 + 222");
-    assert_eq!(parser.next_term().unwrap(), Term::Operand(Operand::Num(111)));
-    assert_eq!(parser.next_term().unwrap(), Term::Operator(Operator::Add));
-    assert_eq!(parser.next_term().unwrap(), Term::Operand(Operand::Num(222)));
-    assert_eq!(parser.next_term().unwrap(), Term::EOF);
+    let terms = parser.map(|t| t.unwrap()).collect::<Vec<Term>>();
+    assert_eq!(terms, vec![
+        Term::Num(111),
+        Term::Operator(Operator::Add),
+        Term::Num(222)
+    ]);
 
     let mut parser = Parser::new("11*22+33");
-    assert_eq!(parser.next_term().unwrap(), Term::Operand(Operand::Num(11)));
-    assert_eq!(parser.next_term().unwrap(), Term::Operator(Operator::Mul));
-    assert_eq!(parser.next_term().unwrap(), Term::Operand(Operand::Num(22)));
-    assert_eq!(parser.next_term().unwrap(), Term::Operator(Operator::Add));
-    assert_eq!(parser.next_term().unwrap(), Term::Operand(Operand::Num(33)));
-    assert_eq!(parser.next_term().unwrap(), Term::EOF);
+    let terms = parser.map(|t| t.unwrap()).collect::<Vec<Term>>();
+    assert_eq!(terms, vec![
+        Term::Num(11),
+        Term::Operator(Operator::Mul),
+        Term::Num(22),
+        Term::Operator(Operator::Add),
+        Term::Num(33)
+    ]);
 
     let mut parser = Parser::new("11 ** 22");
-    assert_eq!(parser.next_term().unwrap(), Term::Operand(Operand::Num(11)));
-    assert!(parser.next_term().is_err());
+    assert_eq!(parser.next().unwrap().unwrap(), Term::Num(11));
+    assert!(parser.next().unwrap().is_err());
 }

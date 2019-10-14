@@ -17,11 +17,11 @@ pub fn parse_num(num_str: &str) -> Result<i64> {
         radix = Some(2);
     }
     if let Some(radix) = radix {
-        i64::from_str_radix(slice, radix).map_err(|_| Error::NumParseError(num_str))
+        i64::from_str_radix(slice, radix).map_err(|_| Error::NumParseError(num_str.to_string()))
     } else {
         [10, 16].iter()
             .find_map(|&radix| i64::from_str_radix(slice, radix).ok())
-            .ok_or(Error::NumParseError(num_str))
+            .ok_or(Error::NumParseError(num_str.to_string()))
     }
 }
 

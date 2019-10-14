@@ -1,14 +1,14 @@
 use std::fmt;
 
-pub type Result<'a, T> = std::result::Result<T, Error<'a>>;
+pub type Result<T> = std::result::Result<T, Error>;
 
 #[derive(Debug)]
-pub enum Error<'a> {
-    NumParseError(&'a str),
-    OperatorParseError(&'a str),
+pub enum Error {
+    NumParseError(String),
+    OperatorParseError(String),
 }
 
-impl fmt::Display for Error<'_> {
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::NumParseError(s) => write!(f, "Could not parse number {}", s),

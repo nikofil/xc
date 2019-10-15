@@ -9,6 +9,7 @@ pub enum Error {
     OperatorParseError(String),
     ExprParseError(Operator),
     ExprTermsError,
+    UnmatchedParenthError,
 }
 
 impl fmt::Display for Error {
@@ -18,6 +19,7 @@ impl fmt::Display for Error {
             Error::OperatorParseError(s) => write!(f, "Unknown operator {}", s),
             Error::ExprParseError(o) => write!(f, "Could not parse {} expression", o),
             Error::ExprTermsError => write!(f, "Incorrect terms found in expression"),
+            Error::UnmatchedParenthError => write!(f, "Unmatched parenthesis in expression"),
         }
     }
 }

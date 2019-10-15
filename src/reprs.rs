@@ -21,7 +21,7 @@ pub fn parse_num(num_str: &str) -> Result<i128> {
     } else {
         [10, 16].iter()
             .find_map(|&radix| i128::from_str_radix(slice, radix).ok())
-            .ok_or(Error::NumParseError(num_str.to_string()))
+            .ok_or_else(|| Error::NumParseError(num_str.to_string()))
     }
 }
 

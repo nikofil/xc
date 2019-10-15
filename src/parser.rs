@@ -1,7 +1,6 @@
 use crate::error::{Error, Result};
 use crate::reprs::parse_num;
 use std::fmt::Display;
-use crate::error::Error::OperatorParseError;
 
 #[derive(Eq, PartialEq, Debug)]
 pub enum Operator {
@@ -78,7 +77,6 @@ impl Parser<'_> {
         let left = operands.pop();
         let last_oper = operators.pop().unwrap();
         if let (Some(left), Some(right)) = (left, right) {
-            eprintln!("Pushing {:?} {:?} {:?}", left, last_oper, right);
             operands.push(Operand::Term(last_oper, Box::new(left), Box::new(right)));
             Ok(())
         } else {
@@ -107,7 +105,7 @@ impl<'a> Into<Result<Operand>> for Parser<'a> {
                             Operator::Sentinel => {
                                 return Err(Error::UnmatchedParenthError);
                             },
-                            _ => Self::push_expr(&mut operands, &mut operators),
+                            _ => Self::push_expr(&mut operands, &mut operators)?,
                         };
                     }
                 },
@@ -146,7 +144,7 @@ impl<'a> Iterator for Parser<'a> {
         if let Some(c) = self.input.chars().next() {
             if c.is_alphanumeric() {
                 let token = self.take_input_until(|nc| !nc.is_alphanumeric());
-                Some(parse_num(token).map(|num| Term::Num(num)))
+                Some(parse_num(token).map(Term::Num))
             } else {
                 let token = self.take_input_until(|nc| nc != c || c == '(' || c == ')');
                 match token {
@@ -165,11 +163,11 @@ impl<'a> Iterator for Parser<'a> {
 
 #[test]
 fn test_lexer() {
-    let mut parser = Parser::new("111 + 222");
+    let parser = Parser::new("111 + 222");
     let terms = parser.map(|t| t.unwrap()).collect::<Vec<Term>>();
     assert_eq!(format!("{:?}", terms), "[Num(111), Operator(Add), Num(222)]");
 
-    let mut parser = Parser::new("11*22+33");
+    let parser = Parser::new("11*22+33");
     let terms = parser.map(|t| t.unwrap()).collect::<Vec<Term>>();
     assert_eq!(format!("{:?}", terms), "[Num(11), Operator(Mul), Num(22), Operator(Add), Num(33)]");
 

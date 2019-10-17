@@ -6,7 +6,16 @@ use std::fmt::Display;
 pub enum Operator {
     Sentinel,
     Add,
+    Sub,
     Mul,
+    Div,
+    Remainder,
+    BNot,
+    BXor,
+    BOr,
+    BAnd,
+    LShift,
+    RShift,
     Lparen,
     Rparen,
 }
@@ -19,6 +28,15 @@ impl Display for Operator {
             Operator::Mul => "*",
             Operator::Lparen => "(",
             Operator::Rparen => ")",
+            Operator::Sub => "-",
+            Operator::Div => "/",
+            Operator::Remainder => "%",
+            Operator::BNot => "~",
+            Operator::BXor => "^",
+            Operator::BOr => "|",
+            Operator::BAnd => "&",
+            Operator::LShift => "<<",
+            Operator::RShift => ">>",
         })
     }
 }
@@ -45,10 +63,19 @@ impl Parser<'_> {
     fn op_precedence(op: &Operator) -> u32 {
         match op {
             Operator::Sentinel => 0,
-            Operator::Add => 20,
-            Operator::Mul => 40,
             Operator::Lparen => 0,
             Operator::Rparen => 0,
+            Operator::BOr => 10,
+            Operator::BXor => 20,
+            Operator::BAnd => 30,
+            Operator::LShift => 40,
+            Operator::RShift => 40,
+            Operator::Add => 50,
+            Operator::Sub => 50,
+            Operator::Mul => 60,
+            Operator::Div => 60,
+            Operator::Remainder => 60,
+            Operator::BNot => 70,
         }
     }
     pub fn new(input: &str) -> Parser {
@@ -149,7 +176,16 @@ impl<'a> Iterator for Parser<'a> {
                 let token = self.take_input_until(|nc| nc != c || c == '(' || c == ')');
                 match token {
                     "+" => Some(Ok(Term::Operator(Operator::Add))),
+                    "-" => Some(Ok(Term::Operator(Operator::Sub))),
                     "*" => Some(Ok(Term::Operator(Operator::Mul))),
+                    "/" => Some(Ok(Term::Operator(Operator::Div))),
+                    "%" => Some(Ok(Term::Operator(Operator::Remainder))),
+                    "~" => Some(Ok(Term::Operator(Operator::Add))),
+                    "^" => Some(Ok(Term::Operator(Operator::BXor))),
+                    "|" => Some(Ok(Term::Operator(Operator::BOr))),
+                    "&" => Some(Ok(Term::Operator(Operator::BAnd))),
+                    "<<" => Some(Ok(Term::Operator(Operator::LShift))),
+                    ">>" => Some(Ok(Term::Operator(Operator::RShift))),
                     "(" => Some(Ok(Term::Lparen)),
                     ")" => Some(Ok(Term::Rparen)),
                     _ => Some(Err(Error::OperatorParseError(token.to_string()))),

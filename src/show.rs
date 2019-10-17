@@ -37,13 +37,14 @@ impl PresentNum for i128 {
     }
 
     fn show_all(&self) {
+        let dec = self.as_dec();
+        let hex = self.as_hex();
         let bin = self.as_bin();
         let ruler = bin.1.chars().skip(bin.1.len() - bin.0.len()).collect::<String>();
-        let strs = vec![self.as_dec(), self.as_hex(), bin.0];
-        let max_len = strs.iter().map(|s| s.len()).max().unwrap();
-        for i in &strs {
-            println!("{:>1$}", i, max_len);
-        }
-        println!("{}", ruler);
+        let max_len = [&dec, &hex, &bin.0].iter().map(|s| s.len()).max().unwrap();
+        println!("\x1B[36mDec   {:>1$}\x1B[0m", dec, max_len);
+        println!("\x1B[92mHex   {:>1$}\x1B[0m", hex, max_len);
+        println!("\x1B[91mBin   {:>1$}\x1B[0m", &bin.0, max_len);
+        println!("\x1B[90m      {}\x1B[0m", ruler);
     }
 }

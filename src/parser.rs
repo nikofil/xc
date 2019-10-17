@@ -10,6 +10,7 @@ pub enum Operator {
     Mul,
     Div,
     Remainder,
+    Neg,
     BNot,
     BXor,
     BOr,
@@ -31,6 +32,7 @@ impl Display for Operator {
             Operator::Sub => "-",
             Operator::Div => "/",
             Operator::Remainder => "%",
+            Operator::Neg => "-",
             Operator::BNot => "~",
             Operator::BXor => "^",
             Operator::BOr => "|",
@@ -57,7 +59,10 @@ pub enum Term {
 
 pub struct Parser<'a> {
     input: &'a str,
+    num_previously: bool,
 }
+
+const UNARY: u32 = 100_000;
 
 impl Parser<'_> {
     fn op_precedence(op: &Operator) -> u32 {
@@ -75,12 +80,14 @@ impl Parser<'_> {
             Operator::Mul => 60,
             Operator::Div => 60,
             Operator::Remainder => 60,
-            Operator::BNot => 70,
+            Operator::BNot => UNARY,
+            Operator::Neg => UNARY,
         }
     }
     pub fn new(input: &str) -> Parser {
         Parser {
             input,
+            num_previously: false,
         }
     }
 
@@ -120,7 +127,7 @@ impl<'a> Into<Result<Operand>> for Parser<'a> {
             match i? {
                 Term::Num(num) => operands.push(Operand::Num(num)),
                 Term::Lparen => {
-                    operators.push(Operator::Lparen)
+                    operators.push(Operator::Lparen);
                 },
                 Term::Rparen => {
                     loop {
@@ -137,6 +144,9 @@ impl<'a> Into<Result<Operand>> for Parser<'a> {
                     }
                 },
                 Term::Operator(oper) => {
+                    if Self::op_precedence(&oper) == UNARY {
+                        operands.push(Operand::Num(0));
+                    }
                     while Self::op_precedence(&oper) <= Self::op_precedence(&operators.last().unwrap()) {
                         Self::push_expr(&mut operands, &mut operators)?;
                     }
@@ -170,17 +180,21 @@ impl<'a> Iterator for Parser<'a> {
         }
         if let Some(c) = self.input.chars().next() {
             if c.is_alphanumeric() {
+                self.num_previously = true;
                 let token = self.take_input_until(|nc| !nc.is_alphanumeric());
                 Some(parse_num(token).map(Term::Num))
             } else {
+                let num_previously = self.num_previously;
+                self.num_previously = false;
                 let token = self.take_input_until(|nc| nc != c || c == '(' || c == ')');
                 match token {
                     "+" => Some(Ok(Term::Operator(Operator::Add))),
-                    "-" => Some(Ok(Term::Operator(Operator::Sub))),
+                    "-" if num_previously => Some(Ok(Term::Operator(Operator::Sub))),
+                    "-" if !num_previously => Some(Ok(Term::Operator(Operator::Neg))),
                     "*" => Some(Ok(Term::Operator(Operator::Mul))),
                     "/" => Some(Ok(Term::Operator(Operator::Div))),
                     "%" => Some(Ok(Term::Operator(Operator::Remainder))),
-                    "~" => Some(Ok(Term::Operator(Operator::Add))),
+                    "~" => Some(Ok(Term::Operator(Operator::BNot))),
                     "^" => Some(Ok(Term::Operator(Operator::BXor))),
                     "|" => Some(Ok(Term::Operator(Operator::BOr))),
                     "&" => Some(Ok(Term::Operator(Operator::BAnd))),
@@ -249,4 +263,18 @@ fn test_parser_parenth() {
 
     assert!(Result::from(Parser::new("0*(1+2))").into()).is_err());
     assert!(Result::from(Parser::new("0*((1+2)").into()).is_err());
+}
+
+#[test]
+fn test_parser_unary() {
+    let oper: Operand = Result::from(Parser::new("-1 * -2").into()).unwrap();
+    assert_eq!(format!("{:?}", oper), "Term(Mul, Term(Neg, Num(0), Num(1)), Term(Neg, Num(0), Num(2)))");
+
+    let oper: Operand = Result::from(Parser::new("~1 + ((-2))").into()).unwrap();
+    assert_eq!(format!("{:?}", oper), "Term(Add, Term(BNot, Num(0), Num(1)), Term(Neg, Num(0), Num(2)))");
+
+    let oper: Operand = Result::from(Parser::new("~2 * ~1 - -0x2 * -3").into()).unwrap();
+    assert_eq!(format!("{:?}", oper), "Term(Sub, \
+    Term(Mul, Term(BNot, Num(0), Num(2)), Term(BNot, Num(0), Num(1))), \
+    Term(Mul, Term(Neg, Num(0), Num(2)), Term(Neg, Num(0), Num(3))))");
 }

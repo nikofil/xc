@@ -18,6 +18,7 @@ fn eval(term: Operand) -> i128 {
                 Operator::Sub => l - r,
                 Operator::Div => l / r,
                 Operator::Remainder => l % r,
+                Operator::Neg => -r,
                 Operator::BNot => !r,
                 Operator::BXor => l ^ r,
                 Operator::BOr => l | r,
@@ -42,4 +43,11 @@ fn test_eval() {
     assert_eq!(eval_expr("0b011 & 0b101").unwrap(), 0b001);
     assert_eq!(eval_expr("1 << 8").unwrap(), 1 << 8);
     assert_eq!(eval_expr("0xFFFFFFFF >> 8").unwrap(), 0xffffff);
+}
+
+#[test]
+fn test_eval_unary() {
+    assert_eq!(eval_expr("-1 * -2").unwrap(), 2);
+    assert_eq!(eval_expr("~1 + -10").unwrap(), !1i128 - 10);
+    assert_eq!(eval_expr("~5 * ~8 - -0x10 * -12").unwrap(), !5i128 * !8i128 - 0x10 * 12);
 }

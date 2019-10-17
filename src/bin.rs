@@ -2,6 +2,7 @@ extern crate xc_lib;
 extern crate clap;
 
 use xc_lib::eval::eval_expr;
+use xc_lib::show::PresentNum;
 use clap::{Arg, App};
 
 fn main() {
@@ -15,7 +16,7 @@ fn main() {
         .get_matches();
     let expr = matches.value_of("EXPR").unwrap();
     match eval_expr(expr) {
-        Ok(res) => println!("{}", res),
+        Ok(res) => res.show_all(),
         Err(err) => eprintln!("Error: {}", err),
     };
 }

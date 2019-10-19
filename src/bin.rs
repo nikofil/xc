@@ -1,37 +1,13 @@
 extern crate clap;
 extern crate xc_lib;
 
+use std::io::stdin;
 use clap::{App, Arg};
 use xc_lib::eval::eval_expr;
 use xc_lib::show::PresentNum;
+use clap::ArgMatches;
 
-fn main() {
-    let matches = App::new("xc")
-        .version("0.1.0")
-        .about("Pocket-sized calculator")
-        .arg(
-            Arg::with_name("dec")
-                .short("d")
-                .help("Only print decimal output"),
-        )
-        .arg(
-            Arg::with_name("hex")
-                .short("h")
-                .help("Only print hex output"),
-        )
-        .arg(
-            Arg::with_name("bin")
-                .short("b")
-                .help("Only print binary output"),
-        )
-        .arg(
-            Arg::with_name("EXPR")
-                .help("Expression to calculate")
-                .required(true)
-                .index(1),
-        )
-        .get_matches();
-    let expr = matches.value_of("EXPR").unwrap();
+fn proc_expr(expr: &str, matches: &ArgMatches) {
     match eval_expr(expr) {
         Ok(res) => {
             let possible_outputs: [(&str, Box<dyn Fn() -> String>); 3] = [
@@ -54,4 +30,49 @@ fn main() {
         }
         Err(err) => eprintln!("Error: {}", err),
     };
+}
+
+fn main() {
+    let matches = App::new("xc")
+        .version("0.1.0")
+        .about("Pocket-sized calculator")
+        .arg(
+            Arg::with_name("interactive")
+                .short("i")
+                .help("Read expressions from input instead of an argument"),
+        )
+        .arg(
+            Arg::with_name("dec")
+                .short("d")
+                .help("Only print decimal output"),
+        )
+        .arg(
+            Arg::with_name("hex")
+                .short("h")
+                .help("Only print hex output"),
+        )
+        .arg(
+            Arg::with_name("bin")
+                .short("b")
+                .help("Only print binary output"),
+        )
+        .arg(
+            Arg::with_name("EXPR")
+                .help("Expression to calculate")
+                .index(1),
+        )
+        .get_matches();
+    if matches.is_present("interactive") {
+        loop {
+            let mut buf = String::new();
+            stdin().read_line(&mut buf).expect("Could not read line");
+            if !buf.trim().is_empty() {
+                proc_expr(&buf, &matches);
+            }
+        }
+    } else if let Some(expr) = matches.value_of("EXPR") {
+        proc_expr(expr, &matches);
+    } else {
+        eprintln!("Please provide either an expression or the --interactive flag");
+    }
 }

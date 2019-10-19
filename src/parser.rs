@@ -124,6 +124,7 @@ impl<'a> Into<Result<Operand>> for Parser<'a> {
         let mut operands: Vec<Operand> = Vec::new();
         let mut operators: Vec<Operator> = vec![Operator::Sentinel];
         for i in self {
+            println!("{:?}", i);
             match i? {
                 Term::Num(num) => operands.push(Operand::Num(num)),
                 Term::Lparen => {
@@ -185,25 +186,28 @@ impl<'a> Iterator for Parser<'a> {
                 Some(parse_num(token).map(Term::Num))
             } else {
                 let num_previously = self.num_previously;
-                self.num_previously = false;
                 let token = self.take_input_until(|nc| nc != c || c == '(' || c == ')');
-                match token {
-                    "+" => Some(Ok(Term::Operator(Operator::Add))),
-                    "-" if num_previously => Some(Ok(Term::Operator(Operator::Sub))),
-                    "-" if !num_previously => Some(Ok(Term::Operator(Operator::Neg))),
-                    "*" => Some(Ok(Term::Operator(Operator::Mul))),
-                    "/" => Some(Ok(Term::Operator(Operator::Div))),
-                    "%" => Some(Ok(Term::Operator(Operator::Remainder))),
-                    "~" => Some(Ok(Term::Operator(Operator::BNot))),
-                    "^" => Some(Ok(Term::Operator(Operator::BXor))),
-                    "|" => Some(Ok(Term::Operator(Operator::BOr))),
-                    "&" => Some(Ok(Term::Operator(Operator::BAnd))),
-                    "<<" => Some(Ok(Term::Operator(Operator::LShift))),
-                    ">>" => Some(Ok(Term::Operator(Operator::RShift))),
-                    "(" => Some(Ok(Term::Lparen)),
-                    ")" => Some(Ok(Term::Rparen)),
-                    _ => Some(Err(Error::OperatorParseError(token.to_string()))),
+                let oper = match token {
+                    "+" => Term::Operator(Operator::Add),
+                    "-" if num_previously => Term::Operator(Operator::Sub),
+                    "-" if !num_previously => Term::Operator(Operator::Neg),
+                    "*" => Term::Operator(Operator::Mul),
+                    "/" => Term::Operator(Operator::Div),
+                    "%" => Term::Operator(Operator::Remainder),
+                    "~" => Term::Operator(Operator::BNot),
+                    "^" => Term::Operator(Operator::BXor),
+                    "|" => Term::Operator(Operator::BOr),
+                    "&" => Term::Operator(Operator::BAnd),
+                    "<<" => Term::Operator(Operator::LShift),
+                    ">>" => Term::Operator(Operator::RShift),
+                    "(" => Term::Lparen,
+                    ")" => Term::Rparen,
+                    _ => return Some(Err(Error::OperatorParseError(token.to_string()))),
+                };
+                if let Term::Operator(_) = oper {
+                    self.num_previously = false;
                 }
+                Some(Ok(oper))
             }
         } else {
             None
@@ -236,6 +240,9 @@ fn test_parser_simple() {
 
     let oper: Operand = Result::from(Parser::new("0*1+2 * 0x10").into()).unwrap();
     assert_eq!(format!("{:?}", oper), "Term(Add, Term(Mul, Num(0), Num(1)), Term(Mul, Num(2), Num(16)))");
+
+    let oper: Operand = Result::from(Parser::new("(2 * 40) - 1").into()).unwrap();
+    assert_eq!(format!("{:?}", oper), "Term(Sub, Term(Mul, Num(2), Num(40)), Num(1))");
 }
 
 #[test]

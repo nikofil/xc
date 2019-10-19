@@ -13,13 +13,14 @@ pub fn parse_num(num_str: &str) -> Result<i128> {
         slice = &slice[2..];
         radix = Some(2);
     } else if slice.ends_with('b') {
-        slice = & slice[..slice.len() - 1];
+        slice = &slice[..slice.len() - 1];
         radix = Some(2);
     }
     if let Some(radix) = radix {
         i128::from_str_radix(slice, radix).map_err(|_| Error::NumParseError(num_str.to_string()))
     } else {
-        [10, 16].iter()
+        [10, 16]
+            .iter()
             .find_map(|&radix| i128::from_str_radix(slice, radix).ok())
             .ok_or_else(|| Error::NumParseError(num_str.to_string()))
     }

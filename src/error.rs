@@ -1,5 +1,5 @@
-use std::fmt;
 use crate::parser::Operator;
+use std::fmt;
 
 pub type Result<T> = std::result::Result<T, Error>;
 

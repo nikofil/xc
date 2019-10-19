@@ -40,7 +40,11 @@ impl PresentNum for i128 {
         let dec = self.as_dec();
         let hex = self.as_hex();
         let bin = self.as_bin();
-        let ruler = bin.1.chars().skip(bin.1.len() - bin.0.len()).collect::<String>();
+        let ruler = bin
+            .1
+            .chars()
+            .skip(bin.1.len() - bin.0.len())
+            .collect::<String>();
         let max_len = [&dec, &hex, &bin.0].iter().map(|s| s.len()).max().unwrap();
         println!("\x1B[36mDec   {:>1$}\x1B[0m", dec, max_len);
         println!("\x1B[92mHex   {:>1$}\x1B[0m", hex, max_len);

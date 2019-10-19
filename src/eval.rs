@@ -1,5 +1,5 @@
-use crate::parser::{Operand, Operator, Parser};
 use crate::error::Result;
+use crate::parser::{Operand, Operator, Parser};
 
 pub fn eval_expr(expr: &str) -> Result<i128> {
     let oper: Result<Operand> = Parser::new(expr).into();
@@ -27,7 +27,7 @@ fn eval(term: Operand) -> i128 {
                 Operator::RShift => l >> r,
                 _ => panic!("Found {:?} in eval", op),
             }
-        },
+        }
     }
 }
 
@@ -50,5 +50,8 @@ fn test_eval() {
 fn test_eval_unary() {
     assert_eq!(eval_expr("-1 * -2").unwrap(), 2);
     assert_eq!(eval_expr("~1 + -10").unwrap(), !1i128 - 10);
-    assert_eq!(eval_expr("~5 * ~8 - -0x10 * -12").unwrap(), !5i128 * !8i128 - 0x10 * 12);
+    assert_eq!(
+        eval_expr("~5 * ~8 - -0x10 * -12").unwrap(),
+        !5i128 * !8i128 - 0x10 * 12
+    );
 }

@@ -23,23 +23,27 @@ pub enum Operator {
 
 impl Display for Operator {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", match self {
-            Operator::Sentinel => panic!("Why are we displaying the sentinel?"),
-            Operator::Add => "+",
-            Operator::Mul => "*",
-            Operator::Lparen => "(",
-            Operator::Rparen => ")",
-            Operator::Sub => "-",
-            Operator::Div => "/",
-            Operator::Remainder => "%",
-            Operator::Neg => "-",
-            Operator::BNot => "~",
-            Operator::BXor => "^",
-            Operator::BOr => "|",
-            Operator::BAnd => "&",
-            Operator::LShift => "<<",
-            Operator::RShift => ">>",
-        })
+        write!(
+            f,
+            "{}",
+            match self {
+                Operator::Sentinel => panic!("Why are we displaying the sentinel?"),
+                Operator::Add => "+",
+                Operator::Mul => "*",
+                Operator::Lparen => "(",
+                Operator::Rparen => ")",
+                Operator::Sub => "-",
+                Operator::Div => "/",
+                Operator::Remainder => "%",
+                Operator::Neg => "-",
+                Operator::BNot => "~",
+                Operator::BXor => "^",
+                Operator::BOr => "|",
+                Operator::BAnd => "&",
+                Operator::LShift => "<<",
+                Operator::RShift => ">>",
+            }
+        )
     }
 }
 
@@ -92,9 +96,15 @@ impl Parser<'_> {
     }
 
     fn take_input_until<P>(&mut self, predicate: P) -> &str
-        where  P: FnMut(char) -> bool
+    where
+        P: FnMut(char) -> bool,
     {
-        let end = self.input.chars().skip(1).position(predicate).map(|e| e+1);
+        let end = self
+            .input
+            .chars()
+            .skip(1)
+            .position(predicate)
+            .map(|e| e + 1);
         if let Some(end) = end {
             let cur_str = self.input;
             self.input = &self.input[end..];
@@ -129,30 +139,30 @@ impl<'a> Into<Result<Operand>> for Parser<'a> {
                 Term::Num(num) => operands.push(Operand::Num(num)),
                 Term::Lparen => {
                     operators.push(Operator::Lparen);
-                },
-                Term::Rparen => {
-                    loop {
-                        match operators.last().unwrap() {
-                            Operator::Lparen => {
-                                operators.pop().unwrap();
-                                break;
-                            },
-                            Operator::Sentinel => {
-                                return Err(Error::UnmatchedParenthError);
-                            },
-                            _ => Self::push_expr(&mut operands, &mut operators)?,
-                        };
-                    }
+                }
+                Term::Rparen => loop {
+                    match operators.last().unwrap() {
+                        Operator::Lparen => {
+                            operators.pop().unwrap();
+                            break;
+                        }
+                        Operator::Sentinel => {
+                            return Err(Error::UnmatchedParenthError);
+                        }
+                        _ => Self::push_expr(&mut operands, &mut operators)?,
+                    };
                 },
                 Term::Operator(oper) => {
                     if Self::op_precedence(&oper) == UNARY {
                         operands.push(Operand::Num(0));
                     }
-                    while Self::op_precedence(&oper) <= Self::op_precedence(&operators.last().unwrap()) {
+                    while Self::op_precedence(&oper)
+                        <= Self::op_precedence(&operators.last().unwrap())
+                    {
                         Self::push_expr(&mut operands, &mut operators)?;
                     }
                     operators.push(oper);
-                },
+                }
             }
         }
         while operators.len() > 1 {
@@ -219,11 +229,17 @@ impl<'a> Iterator for Parser<'a> {
 fn test_lexer() {
     let parser = Parser::new("111 + 222");
     let terms = parser.map(|t| t.unwrap()).collect::<Vec<Term>>();
-    assert_eq!(format!("{:?}", terms), "[Num(111), Operator(Add), Num(222)]");
+    assert_eq!(
+        format!("{:?}", terms),
+        "[Num(111), Operator(Add), Num(222)]"
+    );
 
     let parser = Parser::new("11*22+33");
     let terms = parser.map(|t| t.unwrap()).collect::<Vec<Term>>();
-    assert_eq!(format!("{:?}", terms), "[Num(11), Operator(Mul), Num(22), Operator(Add), Num(33)]");
+    assert_eq!(
+        format!("{:?}", terms),
+        "[Num(11), Operator(Mul), Num(22), Operator(Add), Num(33)]"
+    );
 
     let mut parser = Parser::new("11 ** 22");
     assert_eq!(parser.next().unwrap().unwrap(), Term::Num(11));
@@ -239,10 +255,16 @@ fn test_parser_simple() {
     assert_eq!(format!("{:?}", oper), "Term(Mul, Num(1), Num(2))");
 
     let oper: Operand = Result::from(Parser::new("0*1+2 * 0x10").into()).unwrap();
-    assert_eq!(format!("{:?}", oper), "Term(Add, Term(Mul, Num(0), Num(1)), Term(Mul, Num(2), Num(16)))");
+    assert_eq!(
+        format!("{:?}", oper),
+        "Term(Add, Term(Mul, Num(0), Num(1)), Term(Mul, Num(2), Num(16)))"
+    );
 
     let oper: Operand = Result::from(Parser::new("(2 * 40) - 1").into()).unwrap();
-    assert_eq!(format!("{:?}", oper), "Term(Sub, Term(Mul, Num(2), Num(40)), Num(1))");
+    assert_eq!(
+        format!("{:?}", oper),
+        "Term(Sub, Term(Mul, Num(2), Num(40)), Num(1))"
+    );
 }
 
 #[test]
@@ -257,10 +279,16 @@ fn test_parser_errs() {
 #[test]
 fn test_parser_parenth() {
     let oper: Operand = Result::from(Parser::new("0*(1+2)").into()).unwrap();
-    assert_eq!(format!("{:?}", oper), "Term(Mul, Num(0), Term(Add, Num(1), Num(2)))");
+    assert_eq!(
+        format!("{:?}", oper),
+        "Term(Mul, Num(0), Term(Add, Num(1), Num(2)))"
+    );
 
     let oper: Operand = Result::from(Parser::new("0*((((1+2))))").into()).unwrap();
-    assert_eq!(format!("{:?}", oper), "Term(Mul, Num(0), Term(Add, Num(1), Num(2)))");
+    assert_eq!(
+        format!("{:?}", oper),
+        "Term(Mul, Num(0), Term(Add, Num(1), Num(2)))"
+    );
 
     let oper: Operand = Result::from(Parser::new("0*(1*(2*(3*(4+5))))").into()).unwrap();
     assert_eq!(format!("{:?}", oper), "Term(Mul, Num(0), Term(Mul, Num(1), Term(Mul, Num(2), Term(Mul, Num(3), Term(Add, Num(4), Num(5))))))");
@@ -275,13 +303,22 @@ fn test_parser_parenth() {
 #[test]
 fn test_parser_unary() {
     let oper: Operand = Result::from(Parser::new("-1 * -2").into()).unwrap();
-    assert_eq!(format!("{:?}", oper), "Term(Mul, Term(Neg, Num(0), Num(1)), Term(Neg, Num(0), Num(2)))");
+    assert_eq!(
+        format!("{:?}", oper),
+        "Term(Mul, Term(Neg, Num(0), Num(1)), Term(Neg, Num(0), Num(2)))"
+    );
 
     let oper: Operand = Result::from(Parser::new("~1 + ((-2))").into()).unwrap();
-    assert_eq!(format!("{:?}", oper), "Term(Add, Term(BNot, Num(0), Num(1)), Term(Neg, Num(0), Num(2)))");
+    assert_eq!(
+        format!("{:?}", oper),
+        "Term(Add, Term(BNot, Num(0), Num(1)), Term(Neg, Num(0), Num(2)))"
+    );
 
     let oper: Operand = Result::from(Parser::new("~2 * ~1 - -0x2 * -3").into()).unwrap();
-    assert_eq!(format!("{:?}", oper), "Term(Sub, \
-    Term(Mul, Term(BNot, Num(0), Num(2)), Term(BNot, Num(0), Num(1))), \
-    Term(Mul, Term(Neg, Num(0), Num(2)), Term(Neg, Num(0), Num(3))))");
+    assert_eq!(
+        format!("{:?}", oper),
+        "Term(Sub, \
+         Term(Mul, Term(BNot, Num(0), Num(2)), Term(BNot, Num(0), Num(1))), \
+         Term(Mul, Term(Neg, Num(0), Num(2)), Term(Neg, Num(0), Num(3))))"
+    );
 }

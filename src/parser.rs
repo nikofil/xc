@@ -134,7 +134,6 @@ impl<'a> Into<Result<Operand>> for Parser<'a> {
         let mut operands: Vec<Operand> = Vec::new();
         let mut operators: Vec<Operator> = vec![Operator::Sentinel];
         for i in self {
-            println!("{:?}", i);
             match i? {
                 Term::Num(num) => operands.push(Operand::Num(num)),
                 Term::Lparen => {

@@ -1,11 +1,12 @@
-extern crate clap;
 extern crate xc_lib;
+extern crate clap;
+extern crate rustyline;
 
-use std::io::stdin;
 use clap::{App, Arg};
 use xc_lib::eval::eval_expr;
 use xc_lib::show::PresentNum;
 use clap::ArgMatches;
+use rustyline::{Editor, error::ReadlineError};
 
 fn proc_expr(expr: &str, matches: &ArgMatches) {
     match eval_expr(expr) {
@@ -63,11 +64,18 @@ fn main() {
         )
         .get_matches();
     if matches.is_present("interactive") {
+        let mut editor = Editor::<()>::new();
         loop {
-            let mut buf = String::new();
-            stdin().read_line(&mut buf).expect("Could not read line");
-            if !buf.trim().is_empty() {
-                proc_expr(&buf, &matches);
+            match editor.readline(">> ") {
+                Ok(buf) => {
+                    if !buf.trim().is_empty() {
+                        proc_expr(&buf, &matches);
+                        println!();
+                    }
+                    editor.add_history_entry(buf);
+                },
+                Err(ReadlineError::Interrupted) => {},
+                _ => break,
             }
         }
     } else if let Some(expr) = matches.value_of("EXPR") {

@@ -10,6 +10,7 @@ pub enum Operator {
     Mul,
     Div,
     Remainder,
+    Pow,
     Neg,
     BNot,
     BXor,
@@ -35,6 +36,7 @@ impl Display for Operator {
                 Operator::Sub => "-",
                 Operator::Div => "/",
                 Operator::Remainder => "%",
+                Operator::Pow => "**",
                 Operator::Neg => "-",
                 Operator::BNot => "~",
                 Operator::BXor => "^",
@@ -84,6 +86,7 @@ impl Parser<'_> {
             Operator::Mul => 60,
             Operator::Div => 60,
             Operator::Remainder => 60,
+            Operator::Pow => 70,
             Operator::BNot => UNARY,
             Operator::Neg => UNARY,
         }
@@ -203,6 +206,7 @@ impl<'a> Iterator for Parser<'a> {
                     "*" => Term::Operator(Operator::Mul),
                     "/" => Term::Operator(Operator::Div),
                     "%" => Term::Operator(Operator::Remainder),
+                    "**" => Term::Operator(Operator::Pow),
                     "~" => Term::Operator(Operator::BNot),
                     "^" => Term::Operator(Operator::BXor),
                     "|" => Term::Operator(Operator::BOr),
@@ -240,7 +244,11 @@ fn test_lexer() {
         "[Num(11), Operator(Mul), Num(22), Operator(Add), Num(33)]"
     );
 
-    let mut parser = Parser::new("11 ** 22");
+    let parser = Parser::new("11 ** 22");
+    let terms = parser.map(|t| t.unwrap()).collect::<Vec<Term>>();
+    assert_eq!(format!("{:?}", terms), "[Num(11), Operator(Pow), Num(22)]");
+
+    let mut parser = Parser::new("11 // 22");
     assert_eq!(parser.next().unwrap().unwrap(), Term::Num(11));
     assert!(parser.next().unwrap().is_err());
 }

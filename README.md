@@ -17,6 +17,35 @@ Supports binary, hex and decimal inputs and outputs.
 * `-d` `-h` `-b` control the output format (dec, hex and/or bin) - if none are specified, all are outputted in a pretty format
 * `expression` is a the expression to be calculated
 
+Supported number formats:
+```
+    100 => 100 (dec)
+    0x100 => 256 (hex)
+    100h => 256 (hex)
+    A0 => 160 (hex)
+    0b100 => 4 (bin)
+    100b => 4 (bin)
+```
+
+Supported operators:
+```
+    Add => "+"
+    Mul => "*"
+    Lparen => "("
+    Rparen => ")"
+    Sub => "-"
+    Div => "/"
+    Remainder => "%"
+    Pow => "**"
+    Neg => "-"
+    BNot => "~"
+    BXor => "^"
+    BOr => "|"
+    BAnd => "&"
+    LShift => "<<"
+    RShift => ">>"
+```
+
 ## Planned features for the future
 
 * multiple expressions in one invocation of `xc`

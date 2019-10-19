@@ -18,6 +18,7 @@ fn eval(term: Operand) -> i128 {
                 Operator::Sub => l - r,
                 Operator::Div => l / r,
                 Operator::Remainder => l % r,
+                Operator::Pow => l.pow(r as u32),
                 Operator::Neg => -r,
                 Operator::BNot => !r,
                 Operator::BXor => l ^ r,
@@ -44,6 +45,7 @@ fn test_eval() {
     assert_eq!(eval_expr("1 << 8").unwrap(), 1 << 8);
     assert_eq!(eval_expr("0xFFFFFFFF >> 8").unwrap(), 0xffffff);
     assert_eq!(eval_expr("(2 * 40) - 1").unwrap(), 79);
+    assert_eq!(eval_expr("3 ** 3 - 1").unwrap(), 26);
 }
 
 #[test]

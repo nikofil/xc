@@ -194,7 +194,7 @@ impl<'a> Iterator for Parser<'a> {
         if let Some(c) = self.input.chars().next() {
             if c.is_alphanumeric() {
                 self.num_previously = true;
-                let token = self.take_input_until(|nc| !nc.is_alphanumeric());
+                let token = self.take_input_until(|nc| !nc.is_alphanumeric() && !nc.is_whitespace());
                 Some(parse_num(token).map(Term::Num))
             } else {
                 let num_previously = self.num_previously;
@@ -272,12 +272,14 @@ fn test_parser_simple() {
         format!("{:?}", oper),
         "Term(Sub, Term(Mul, Num(2), Num(40)), Num(1))"
     );
+
+    let oper: Operand = Result::from(Parser::new("1 2 3+4 5  6").into()).unwrap();
+    assert_eq!(format!("{:?}", oper), "Term(Add, Num(123), Num(456))");
 }
 
 #[test]
 fn test_parser_errs() {
     assert!(Result::from(Parser::new("0*").into()).is_err());
-    assert!(Result::from(Parser::new("1 2").into()).is_err());
     assert!(Result::from(Parser::new("   ").into()).is_err());
     assert!(Result::from(Parser::new("1*2*+3").into()).is_err());
     assert!(Result::from(Parser::new("1*2*").into()).is_err());

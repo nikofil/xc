@@ -2,7 +2,7 @@ use crate::error::{Error, Result};
 
 pub fn parse_num(num_str: &str) -> Result<i128> {
     let mut radix: Option<u32> = None;
-    let mut slice = num_str;
+    let mut slice = num_str.trim();
     if slice.starts_with("0x") {
         slice = &slice[2..];
         radix = Some(16);
@@ -16,12 +16,13 @@ pub fn parse_num(num_str: &str) -> Result<i128> {
         slice = &slice[..slice.len() - 1];
         radix = Some(2);
     }
+    let num_clean: String = slice.split_whitespace().collect();
     if let Some(radix) = radix {
-        i128::from_str_radix(slice, radix).map_err(|_| Error::NumParseError(num_str.to_string()))
+        i128::from_str_radix(&num_clean, radix).map_err(|_| Error::NumParseError(num_clean))
     } else {
         [10, 16]
             .iter()
-            .find_map(|&radix| i128::from_str_radix(slice, radix).ok())
+            .find_map(|&radix| i128::from_str_radix(&num_clean, radix).ok())
             .ok_or_else(|| Error::NumParseError(num_str.to_string()))
     }
 }
@@ -52,4 +53,5 @@ fn test_parse_dec() {
     assert_eq!(parse_num("01010").unwrap(), 1010);
     assert_eq!(parse_num("1234").unwrap(), 1234);
     assert_eq!(parse_num("-4321").unwrap(), -4321);
+    assert_eq!(parse_num(" 1 23   4 ").unwrap(), 1234);
 }

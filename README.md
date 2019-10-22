@@ -60,7 +60,10 @@ Bin   10 0000 b
       --4----0 
 ```
 
-## Planned features for the future
-
-* read / write values from and to a file given a filename, offset and number of bytes
-* functions
+## Features
+- [x] interactive mode
+- [x] show different formats for output
+- [x] multiple expressions in one invocation of `xc`
+- [x] store calculation results in variables for reusing in future expressions
+- [ ] read / write values from and to a file given a filename, offset and number of bytes
+- [ ] functions

@@ -10,9 +10,11 @@ pub fn eval_expr(expr: &str, ctx: &mut HashMap<String, i128>) -> Result<Option<i
 fn eval(term: Operand, ctx: &mut HashMap<String, i128>) -> Option<i128> {
     match term {
         Operand::Num(i) => Some(i),
-        Operand::Term(Operator::Assign, box Operand::Var(var_name), term) => {
-            let x = eval(*term, ctx)?;
-            ctx.insert(var_name, x);
+        Operand::Term(Operator::Assign, lhs, term) => {
+            if let Operand::Var(var_name) = *lhs {
+                let x = eval(*term, ctx)?;
+                ctx.insert(var_name, x);
+            }
             None
         }
         Operand::Var(var_name) => ctx.get(&var_name).map(|num| *num),

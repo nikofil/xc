@@ -12,11 +12,10 @@ Supports binary, hex and decimal inputs and outputs.
 
 ## Usage
 
-`xc [-i] [-dhb] expression`
+`xc [-dhb] [expression]`
 
-* `-i` go into interactive mode instead of parsing a single expression
 * `-d` `-h` `-b` control the output format (dec, hex and/or bin) - if none are specified, all are outputted in a pretty format
-* `expression` is a the expression to be calculated
+* `expression` is an expression to be calculated, if one isn't given then `xc` opens in interactive mode
 
 ### Supported number formats:
 ```

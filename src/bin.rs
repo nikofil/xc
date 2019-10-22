@@ -40,11 +40,6 @@ fn main() {
         .version("0.1.0")
         .about("Pocket-sized calculator")
         .arg(
-            Arg::with_name("interactive")
-                .short("i")
-                .help("Read expressions from input instead of an argument"),
-        )
-        .arg(
             Arg::with_name("dec")
                 .short("d")
                 .help("Only print decimal output"),
@@ -60,12 +55,20 @@ fn main() {
                 .help("Only print binary output"),
         )
         .arg(
-            Arg::with_name("EXPR")
-                .help("Expression to calculate")
+            Arg::with_name("expr")
+                .help("Expression to calculate, if one isn't given xc opens in interactive mode")
                 .index(1),
         )
         .get_matches();
-    if matches.is_present("interactive") {
+    if let Some(exprs) = matches.value_of("expr") {
+        let mut ctx = HashMap::new();
+        for expr in exprs.split(";") {
+            if !expr.trim().is_empty() {
+                println!("> {}", expr.trim());
+                proc_expr(expr, &mut ctx, &matches);
+            }
+        }
+    } else {
         let mut editor = Editor::<()>::new();
         let mut ctx = HashMap::new();
         loop {
@@ -81,15 +84,5 @@ fn main() {
                 _ => break,
             }
         }
-    } else if let Some(exprs) = matches.value_of("EXPR") {
-        let mut ctx = HashMap::new();
-        for expr in exprs.split(";") {
-            if !expr.trim().is_empty() {
-                println!("> {}", expr.trim());
-                proc_expr(expr, &mut ctx, &matches);
-            }
-        }
-    } else {
-        eprintln!("Please provide either an expression or the --interactive flag");
     }
 }

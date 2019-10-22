@@ -1,3 +1,5 @@
+#![feature(box_patterns)]
+
 pub(crate) mod error;
 pub mod eval;
 pub(crate) mod parser;

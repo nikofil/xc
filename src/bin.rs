@@ -1,16 +1,17 @@
-extern crate xc_lib;
 extern crate clap;
 extern crate rustyline;
+extern crate xc_lib;
 
+use clap::ArgMatches;
 use clap::{App, Arg};
+use rustyline::{error::ReadlineError, Editor};
 use xc_lib::eval::eval_expr;
 use xc_lib::show::PresentNum;
-use clap::ArgMatches;
-use rustyline::{Editor, error::ReadlineError};
+use std::collections::HashMap;
 
-fn proc_expr(expr: &str, matches: &ArgMatches) {
-    match eval_expr(expr) {
-        Ok(res) => {
+fn proc_expr(expr: &str, ctx: &mut HashMap<String, i128>, matches: &ArgMatches) {
+    match eval_expr(expr, ctx) {
+        Ok(Some(res)) => {
             let possible_outputs: [(&str, Box<dyn Fn() -> String>); 3] = [
                 ("dec", Box::new(|| res.as_dec(true))),
                 ("hex", Box::new(|| res.as_hex(true))),
@@ -29,6 +30,7 @@ fn proc_expr(expr: &str, matches: &ArgMatches) {
                 println!("{}", res.show_all());
             }
         }
+        Ok(None) => {}
         Err(err) => eprintln!("Error: {}", err),
     };
 }
@@ -65,21 +67,28 @@ fn main() {
         .get_matches();
     if matches.is_present("interactive") {
         let mut editor = Editor::<()>::new();
+        let mut ctx = HashMap::new();
         loop {
             match editor.readline(">> ") {
                 Ok(buf) => {
                     if !buf.trim().is_empty() {
-                        proc_expr(&buf, &matches);
+                        proc_expr(&buf, &mut ctx, &matches);
                         println!();
                     }
                     editor.add_history_entry(buf);
-                },
-                Err(ReadlineError::Interrupted) => {},
+                }
+                Err(ReadlineError::Interrupted) => {}
                 _ => break,
             }
         }
-    } else if let Some(expr) = matches.value_of("EXPR") {
-        proc_expr(expr, &matches);
+    } else if let Some(exprs) = matches.value_of("EXPR") {
+        let mut ctx = HashMap::new();
+        for expr in exprs.split(";") {
+            if !expr.trim().is_empty() {
+                println!("> {}", expr.trim());
+                proc_expr(expr, &mut ctx, &matches);
+            }
+        }
     } else {
         eprintln!("Please provide either an expression or the --interactive flag");
     }

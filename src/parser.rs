@@ -20,6 +20,7 @@ pub enum Operator {
     RShift,
     Lparen,
     Rparen,
+    Assign,
 }
 
 impl Display for Operator {
@@ -31,8 +32,6 @@ impl Display for Operator {
                 Operator::Sentinel => panic!("Why are we displaying the sentinel?"),
                 Operator::Add => "+",
                 Operator::Mul => "*",
-                Operator::Lparen => "(",
-                Operator::Rparen => ")",
                 Operator::Sub => "-",
                 Operator::Div => "/",
                 Operator::Remainder => "%",
@@ -44,6 +43,9 @@ impl Display for Operator {
                 Operator::BAnd => "&",
                 Operator::LShift => "<<",
                 Operator::RShift => ">>",
+                Operator::Lparen => "(",
+                Operator::Rparen => ")",
+                Operator::Assign => "=",
             }
         )
     }
@@ -53,12 +55,14 @@ impl Display for Operator {
 pub enum Operand {
     Num(i128),
     Term(Operator, Box<Operand>, Box<Operand>),
+    Var(String),
 }
 
 #[derive(Eq, PartialEq, Debug)]
 pub enum Term {
     Operator(Operator),
     Num(i128),
+    Var(String),
     Lparen,
     Rparen,
 }
@@ -68,14 +72,15 @@ pub struct Parser<'a> {
     num_previously: bool,
 }
 
-const UNARY: u32 = 100_000;
+const UNARY: i32 = 100_000;
 
 impl Parser<'_> {
-    fn op_precedence(op: &Operator) -> u32 {
+    fn op_precedence(op: &Operator) -> i32 {
         match op {
-            Operator::Sentinel => 0,
+            Operator::Sentinel => -1,
             Operator::Lparen => 0,
             Operator::Rparen => 0,
+            Operator::Assign => 0,
             Operator::BOr => 10,
             Operator::BXor => 20,
             Operator::BAnd => 30,
@@ -139,6 +144,7 @@ impl<'a> Into<Result<Operand>> for Parser<'a> {
         for i in self {
             match i? {
                 Term::Num(num) => operands.push(Operand::Num(num)),
+                Term::Var(var_name) => operands.push(Operand::Var(var_name)),
                 Term::Lparen => {
                     operators.push(Operator::Lparen);
                 }
@@ -194,8 +200,13 @@ impl<'a> Iterator for Parser<'a> {
         if let Some(c) = self.input.chars().next() {
             if c.is_alphanumeric() {
                 self.num_previously = true;
-                let token = self.take_input_until(|nc| !nc.is_alphanumeric() && !nc.is_whitespace());
+                let token =
+                    self.take_input_until(|nc| !nc.is_alphanumeric() && !nc.is_whitespace());
                 Some(parse_num(token).map(Term::Num))
+            } else if c == '$' {
+                self.num_previously = true;
+                let token = self.take_input_until(|nc| !nc.is_alphanumeric() && nc != '_');
+                Some(Ok(Term::Var(token.to_string())))
             } else {
                 let num_previously = self.num_previously;
                 let token = self.take_input_until(|nc| nc != c || c == '(' || c == ')');
@@ -215,6 +226,7 @@ impl<'a> Iterator for Parser<'a> {
                     ">>" => Term::Operator(Operator::RShift),
                     "(" => Term::Lparen,
                     ")" => Term::Rparen,
+                    "=" => Term::Operator(Operator::Assign),
                     _ => return Some(Err(Error::OperatorParseError(token.to_string()))),
                 };
                 if let Term::Operator(_) = oper {
@@ -329,5 +341,34 @@ fn test_parser_unary() {
         "Term(Sub, \
          Term(Mul, Term(BNot, Num(0), Num(2)), Term(BNot, Num(0), Num(1))), \
          Term(Mul, Term(Neg, Num(0), Num(2)), Term(Neg, Num(0), Num(3))))"
+    );
+}
+
+#[test]
+fn test_parser_assign() {
+    let oper: Operand = Result::from(Parser::new("1 = 2 + 3").into()).unwrap();
+    assert_eq!(
+        format!("{:?}", oper),
+        "Term(Assign, Num(1), Term(Add, Num(2), Num(3)))"
+    );
+
+    let oper: Operand = Result::from(Parser::new("a = 1 + 2").into()).unwrap();
+    assert_eq!(
+        format!("{:?}", oper),
+        "Term(Assign, Num(10), Term(Add, Num(1), Num(2)))"
+    );
+
+    let oper: Operand = Result::from(Parser::new("$a = 1 * 2 + 3 / ~4").into()).unwrap();
+    assert_eq!(
+        format!("{:?}", oper),
+        "Term(Assign, Var(\"$a\"), \
+         Term(Add, Term(Mul, Num(1), Num(2)), Term(Div, Num(3), Term(BNot, Num(0), Num(4)))))"
+    );
+
+    let oper: Operand = Result::from(Parser::new("$a = $b * $c + $d / ~$e").into()).unwrap();
+    assert_eq!(
+        format!("{:?}", oper),
+        "Term(Assign, Var(\"$a\"), \
+         Term(Add, Term(Mul, Var(\"$b\"), Var(\"$c\")), Term(Div, Var(\"$d\"), Term(BNot, Num(0), Var(\"$e\")))))"
     );
 }

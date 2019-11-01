@@ -5,14 +5,14 @@ extern crate xc_lib;
 use clap::ArgMatches;
 use clap::{App, Arg};
 use rustyline::{error::ReadlineError, Editor};
-use xc_lib::eval::eval_expr;
+use xc_lib::eval::{eval_expr, CompResult, Context};
 use xc_lib::show::PresentNum;
-use std::collections::HashMap;
 
-fn proc_expr(expr: &str, ctx: &mut HashMap<String, i128>, matches: &ArgMatches) {
+fn proc_expr(expr: &str, ctx: &mut Context, matches: &ArgMatches) {
     match eval_expr(expr, ctx) {
-        Ok(Some(res)) => {
-            let possible_outputs: [(&str, Box<dyn Fn() -> String>); 3] = [
+        Ok(Some(CompResult::Num(res))) => {
+            type OutputFn<'a> = Box<dyn Fn() -> String + 'a>;
+            let possible_outputs: [(&str, OutputFn); 3] = [
                 ("dec", Box::new(|| res.as_dec(true))),
                 ("hex", Box::new(|| res.as_hex(true))),
                 ("bin", Box::new(|| res.as_bin(true).0)),
@@ -29,6 +29,9 @@ fn proc_expr(expr: &str, ctx: &mut HashMap<String, i128>, matches: &ArgMatches) 
             } else {
                 println!("{}", res.show_all());
             }
+        }
+        Ok(Some(comp_res)) => {
+            println!("{}", comp_res);
         }
         Ok(None) => {}
         Err(err) => eprintln!("Error: {}", err),
@@ -61,8 +64,8 @@ fn main() {
         )
         .get_matches();
     if let Some(exprs) = matches.value_of("expr") {
-        let mut ctx = HashMap::new();
-        for expr in exprs.split(";") {
+        let mut ctx = Context::new();
+        for expr in exprs.split(';') {
             if !expr.trim().is_empty() {
                 println!("> {}", expr.trim());
                 proc_expr(expr, &mut ctx, &matches);
@@ -70,7 +73,7 @@ fn main() {
         }
     } else {
         let mut editor = Editor::<()>::new();
-        let mut ctx = HashMap::new();
+        let mut ctx = Context::new();
         loop {
             match editor.readline(">> ") {
                 Ok(buf) => {

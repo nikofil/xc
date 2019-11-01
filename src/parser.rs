@@ -2,7 +2,7 @@ use crate::error::{Error, Result};
 use crate::reprs::parse_num;
 use std::fmt::Display;
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub enum Operator {
     Sentinel,
     Add,
@@ -21,6 +21,7 @@ pub enum Operator {
     Lparen,
     Rparen,
     Assign,
+    FnBody,
 }
 
 impl Display for Operator {
@@ -46,30 +47,44 @@ impl Display for Operator {
                 Operator::Lparen => "(",
                 Operator::Rparen => ")",
                 Operator::Assign => "=",
+                Operator::FnBody => "->",
             }
         )
     }
 }
 
-#[derive(Eq, PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub enum Operand {
     Num(i128),
     Term(Operator, Box<Operand>, Box<Operand>),
     Var(String),
+    FnArgs(Vec<String>),
 }
 
-#[derive(Eq, PartialEq, Debug)]
+impl Display for Operand {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Operand::Num(i) => write!(f, "{}", i),
+            Operand::Term(oper, lhs, rhs) => write!(f, "({} {} {})", lhs, oper, rhs),
+            Operand::Var(name) => write!(f, "{}", name),
+            Operand::FnArgs(args) => write!(f, "{:?}", args),
+        }
+    }
+}
+
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub enum Term {
     Operator(Operator),
     Num(i128),
     Var(String),
+    FnArgs(Vec<String>),
     Lparen,
     Rparen,
 }
 
 pub struct Parser<'a> {
     input: &'a str,
-    num_previously: bool,
+    last_was_operand: bool,
 }
 
 const UNARY: i32 = 100_000;
@@ -78,9 +93,10 @@ impl Parser<'_> {
     fn op_precedence(op: &Operator) -> i32 {
         match op {
             Operator::Sentinel => -1,
-            Operator::Lparen => 0,
-            Operator::Rparen => 0,
             Operator::Assign => 0,
+            Operator::Lparen => 2,
+            Operator::Rparen => 2,
+            Operator::FnBody => 5,
             Operator::BOr => 10,
             Operator::BXor => 20,
             Operator::BAnd => 30,
@@ -99,7 +115,7 @@ impl Parser<'_> {
     pub fn new(input: &str) -> Parser {
         Parser {
             input,
-            num_previously: false,
+            last_was_operand: false,
         }
     }
 
@@ -171,6 +187,10 @@ impl<'a> Into<Result<Operand>> for Parser<'a> {
                     }
                     operators.push(oper);
                 }
+                Term::FnArgs(args) => {
+                    operands.push(Operand::FnArgs(args));
+                    operators.push(Operator::FnBody);
+                }
             }
         }
         while operators.len() > 1 {
@@ -199,21 +219,30 @@ impl<'a> Iterator for Parser<'a> {
         }
         if let Some(c) = self.input.chars().next() {
             if c.is_alphanumeric() {
-                self.num_previously = true;
+                self.last_was_operand = true;
                 let token =
                     self.take_input_until(|nc| !nc.is_alphanumeric() && !nc.is_whitespace());
                 Some(parse_num(token).map(Term::Num))
             } else if c == '$' {
-                self.num_previously = true;
+                self.last_was_operand = true;
                 let token = self.take_input_until(|nc| !nc.is_alphanumeric() && nc != '_');
                 Some(Ok(Term::Var(token.to_string())))
+            } else if c == '|' && !self.last_was_operand {
+                self.last_was_operand = true;
+                let token = self.take_input_until(|nc| nc == '|');
+                let pars = token[1..]
+                    .split(',')
+                    .map(|par| par.trim().to_string())
+                    .collect::<Vec<String>>();
+                self.input = &self.input[1..];
+                Some(Ok(Term::FnArgs(pars)))
             } else {
-                let num_previously = self.num_previously;
+                let last_was_operand = self.last_was_operand;
                 let token = self.take_input_until(|nc| nc != c || c == '(' || c == ')');
                 let oper = match token {
                     "+" => Term::Operator(Operator::Add),
-                    "-" if num_previously => Term::Operator(Operator::Sub),
-                    "-" if !num_previously => Term::Operator(Operator::Neg),
+                    "-" if last_was_operand => Term::Operator(Operator::Sub),
+                    "-" if !last_was_operand => Term::Operator(Operator::Neg),
                     "*" => Term::Operator(Operator::Mul),
                     "/" => Term::Operator(Operator::Div),
                     "%" => Term::Operator(Operator::Remainder),
@@ -230,7 +259,7 @@ impl<'a> Iterator for Parser<'a> {
                     _ => return Some(Err(Error::OperatorParseError(token.to_string()))),
                 };
                 if let Term::Operator(_) = oper {
-                    self.num_previously = false;
+                    self.last_was_operand = false;
                 }
                 Some(Ok(oper))
             }
@@ -371,4 +400,13 @@ fn test_parser_assign() {
         "Term(Assign, Var(\"$a\"), \
          Term(Add, Term(Mul, Var(\"$b\"), Var(\"$c\")), Term(Div, Var(\"$d\"), Term(BNot, Num(0), Var(\"$e\")))))"
     );
+}
+
+#[test]
+fn test_create_func() {
+    let oper: Operand = Result::from(Parser::new("|$x| $x + $y").into()).unwrap();
+    assert_eq!(format!("{}", oper), "([\"$x\"] -> ($x + $y))");
+
+    let oper: Operand = Result::from(Parser::new("$z = |$x| $x + $y").into()).unwrap();
+    assert_eq!(format!("{}", oper), "($z = ([\"$x\"] -> ($x + $y)))");
 }

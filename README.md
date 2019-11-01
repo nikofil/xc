@@ -60,10 +60,23 @@ Bin   10 0000 b
       --4----0 
 ```
 
+### Higher-order functions:
+Functions can be declared with the format `|arg1, arg2, ...| expr`. They can then be called with `$func_name(arg1, arg2, ...)`.
+```console
+$ xc '$x = |$i| $i*2; $y = |$f, $i| $f($i) + 3; $y($x, 1)'
+> $x = |$i| $i*2
+> $y = |$f, $i| $f($i) + 3
+> $y($x, 1)
+Dec     5  
+Hex     5 h
+Bin   101 b
+      ---0 
+```
+
 ## Features
 - [x] interactive mode
 - [x] show different formats for output
 - [x] multiple expressions in one invocation of `xc`
 - [x] store calculation results in variables for reusing in future expressions
+- [x] functions
 - [ ] read / write values from and to a file given a filename, offset and number of bytes
-- [ ] functions

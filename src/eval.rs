@@ -43,6 +43,30 @@ fn eval(term: Operand, ctx: &mut Context) -> Option<CompResult> {
                 panic!("Found FnBody without arguments");
             }
         }
+        Operand::Term(Operator::FnCall, method, actual_args) => {
+            let method_decl = eval(*method, ctx)?;
+            if let CompResult::Func(formal_args, func_body) = method_decl {
+                let mut args: Vec<CompResult> = Vec::new();
+                let mut cur = Some(*actual_args);
+                while let Some(Operand::Term(Operator::List, left, right)) = cur {
+                    args.push(eval(*right, ctx).unwrap());
+                    cur = Some(*left);
+                }
+                if let Some(cur) = cur.take() {
+                    args.push(eval(cur, ctx).unwrap())
+                }
+                let mut ctx = Context::new();
+                formal_args
+                    .iter()
+                    .zip(args.iter().rev())
+                    .for_each(|(actual, formal)| {
+                        ctx.insert(actual.clone(), formal.clone());
+                    });
+                eval(func_body, &mut ctx)
+            } else {
+                None
+            }
+        }
         Operand::Term(op, l, r) => {
             if let (CompResult::Num(l), CompResult::Num(r)) = (eval(*l, ctx)?, eval(*r, ctx)?) {
                 Some(CompResult::Num(match op {
@@ -132,5 +156,19 @@ fn test_eval_funcs() {
     assert_eq!(
         eval_expr("$f", &mut ctx).unwrap().unwrap().to_string(),
         "|$x, $y, $z| (($x + $y) * $z)"
+    );
+
+    assert_eq!(
+        eval_expr("$f(1, 2, 3)", &mut ctx).unwrap(),
+        Some(CompResult::Num(9))
+    );
+
+    assert_eq!(
+        eval_expr(
+            "(|$i, $j| (|$x, $y, $z| $x * $y + $z)($i, 2, $j))(3, 1)",
+            &mut ctx
+        )
+        .unwrap(),
+        Some(CompResult::Num(7))
     );
 }

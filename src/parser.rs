@@ -21,7 +21,9 @@ pub enum Operator {
     Lparen,
     Rparen,
     Assign,
+    List,
     FnBody,
+    FnCall,
 }
 
 impl Display for Operator {
@@ -47,7 +49,9 @@ impl Display for Operator {
                 Operator::Lparen => "(",
                 Operator::Rparen => ")",
                 Operator::Assign => "=",
+                Operator::List => ",",
                 Operator::FnBody => "->",
+                Operator::FnCall => ":",
             }
         )
     }
@@ -88,6 +92,7 @@ pub struct Parser<'a> {
 }
 
 const UNARY: i32 = 100_000;
+const FN_CALL: i32 = 200_000;
 
 impl Parser<'_> {
     fn op_precedence(op: &Operator) -> i32 {
@@ -96,6 +101,7 @@ impl Parser<'_> {
             Operator::Assign => 0,
             Operator::Lparen => 2,
             Operator::Rparen => 2,
+            Operator::List => 3,
             Operator::FnBody => 5,
             Operator::BOr => 10,
             Operator::BXor => 20,
@@ -110,6 +116,7 @@ impl Parser<'_> {
             Operator::Pow => 70,
             Operator::BNot => UNARY,
             Operator::Neg => UNARY,
+            Operator::FnCall => FN_CALL,
         }
     }
     pub fn new(input: &str) -> Parser {
@@ -161,6 +168,10 @@ impl<'a> Into<Result<Operand>> for Parser<'a> {
             match i? {
                 Term::Num(num) => operands.push(Operand::Num(num)),
                 Term::Var(var_name) => operands.push(Operand::Var(var_name)),
+                Term::Operator(Operator::FnCall) => {
+                    operators.push(Operator::FnCall);
+                    operators.push(Operator::Lparen);
+                }
                 Term::Lparen => {
                     operators.push(Operator::Lparen);
                 }
@@ -228,7 +239,7 @@ impl<'a> Iterator for Parser<'a> {
                 let token = self.take_input_until(|nc| !nc.is_alphanumeric() && nc != '_');
                 Some(Ok(Term::Var(token.to_string())))
             } else if c == '|' && !self.last_was_operand {
-                self.last_was_operand = true;
+                self.last_was_operand = false;
                 let token = self.take_input_until(|nc| nc == '|');
                 let pars = token[1..]
                     .split(',')
@@ -253,9 +264,11 @@ impl<'a> Iterator for Parser<'a> {
                     "&" => Term::Operator(Operator::BAnd),
                     "<<" => Term::Operator(Operator::LShift),
                     ">>" => Term::Operator(Operator::RShift),
-                    "(" => Term::Lparen,
+                    "(" if last_was_operand => Term::Operator(Operator::FnCall),
+                    "(" if !last_was_operand => Term::Lparen,
                     ")" => Term::Rparen,
                     "=" => Term::Operator(Operator::Assign),
+                    "," => Term::Operator(Operator::List),
                     _ => return Some(Err(Error::OperatorParseError(token.to_string()))),
                 };
                 if let Term::Operator(_) = oper {
@@ -409,4 +422,19 @@ fn test_create_func() {
 
     let oper: Operand = Result::from(Parser::new("$z = |$x| $x + $y").into()).unwrap();
     assert_eq!(format!("{}", oper), "($z = ([\"$x\"] -> ($x + $y)))");
+
+    let oper: Operand = Result::from(Parser::new("$x(1, 2)").into()).unwrap();
+    assert_eq!(format!("{}", oper), "($x : (1 , 2))");
+
+    let oper: Operand = Result::from(Parser::new("$x(1, 2+3, $f(4, 5*6))").into()).unwrap();
+    assert_eq!(
+        format!("{}", oper),
+        "($x : ((1 , (2 + 3)) , ($f : (4 , (5 * 6)))))"
+    );
+
+    let oper: Operand = Result::from(Parser::new("(|$x| $x + $y)(1, 2, 3)").into()).unwrap();
+    assert_eq!(
+        format!("{}", oper),
+        "(([\"$x\"] -> ($x + $y)) : ((1 , 2) , 3))"
+    );
 }

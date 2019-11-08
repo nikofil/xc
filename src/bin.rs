@@ -2,29 +2,19 @@ extern crate clap;
 extern crate rustyline;
 extern crate xc_lib;
 
-use clap::ArgMatches;
 use clap::{App, Arg};
 use rustyline::{error::ReadlineError, Editor};
 use xc_lib::eval::{eval_expr, CompResult, Context};
 use xc_lib::show::PresentNum;
 
-fn proc_expr(expr: &str, ctx: &mut Context, matches: &ArgMatches) {
+type OutputFn<'a> = Box<dyn Fn(i128) -> String + 'a>;
+
+fn proc_expr(expr: &str, ctx: &mut Context, out_fns: &[&OutputFn]) {
     match eval_expr(expr, ctx) {
         Ok(Some(CompResult::Num(res))) => {
-            type OutputFn<'a> = Box<dyn Fn() -> String + 'a>;
-            let possible_outputs: [(&str, OutputFn); 3] = [
-                ("dec", Box::new(|| res.as_dec(true))),
-                ("hex", Box::new(|| res.as_hex(true))),
-                ("bin", Box::new(|| res.as_bin(true).0)),
-            ];
-            let mut selected = possible_outputs
-                .iter()
-                .filter_map(|(name, output)| matches.index_of(name).map(|idx| (idx, output)))
-                .collect::<Vec<(usize, &Box<dyn Fn() -> String>)>>();
-            selected.sort_by_key(|(idx, _)| *idx);
-            if !selected.is_empty() {
-                for (_, f) in selected {
-                    println!("{}", f());
+            if !out_fns.is_empty() {
+                for out_fn in out_fns {
+                    println!("{}", out_fn(res));
                 }
             } else {
                 println!("{}", res.show_all());
@@ -63,12 +53,33 @@ fn main() {
                 .index(1),
         )
         .get_matches();
+
+    let possible_outputs: [(&str, OutputFn); 3] = [
+        ("dec", Box::new(|res| res.as_dec(true))),
+        ("hex", Box::new(|res| res.as_hex(true))),
+        ("bin", Box::new(|res| res.as_bin(true).0)),
+    ];
+
+    let mut selected = possible_outputs
+        .iter()
+        .filter_map(|(name, output)| matches.index_of(name).map(|idx| (idx, output)))
+        .collect::<Vec<(usize, &OutputFn)>>();
+
+    selected.sort_by_key(|(idx, _)| *idx);
+
+    let selected_ord = selected
+        .into_iter()
+        .map(|(_, out_fn)| out_fn)
+        .collect::<Vec<&OutputFn>>();
+
     if let Some(exprs) = matches.value_of("expr") {
         let mut ctx = Context::new();
         for expr in exprs.split(';') {
             if !expr.trim().is_empty() {
-                println!("> {}", expr.trim());
-                proc_expr(expr, &mut ctx, &matches);
+                if selected_ord.is_empty() {
+                    println!("> {}", expr.trim());
+                }
+                proc_expr(expr, &mut ctx, &selected_ord);
             }
         }
     } else {
@@ -78,7 +89,7 @@ fn main() {
             match editor.readline(">> ") {
                 Ok(buf) => {
                     if !buf.trim().is_empty() {
-                        proc_expr(&buf, &mut ctx, &matches);
+                        proc_expr(&buf, &mut ctx, &selected_ord);
                         println!();
                     }
                     editor.add_history_entry(buf);

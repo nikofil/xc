@@ -49,6 +49,7 @@ fn main() {
         )
         .arg(
             Arg::with_name("expr")
+                .multiple(true)
                 .help("Expression to calculate, if one isn't given xc opens in interactive mode")
                 .index(1),
         )
@@ -72,7 +73,8 @@ fn main() {
         .map(|(_, out_fn)| out_fn)
         .collect::<Vec<&OutputFn>>();
 
-    if let Some(exprs) = matches.value_of("expr") {
+    if let Some(exprs) = matches.values_of("expr") {
+        let exprs: &str = &exprs.collect::<Vec<&str>>().join(" ");
         let mut ctx = Context::new();
         for expr in exprs.split(';') {
             if !expr.trim().is_empty() {
